@@ -1,0 +1,17 @@
+{
+  "name": "whatsapp-sender",
+  "version": "1.0.0",
+  "description": "A simple WhatsApp dashboard for bulk messaging and customer management",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx http-server",
+    "start": "npx http-server"
+  },
+  "keywords": [
+    "whatsapp",
+    "messaging",
+    "bulk-send"
+  ],
+  "author": "Mohamed Turb",
+  "license": "MIT"
+}

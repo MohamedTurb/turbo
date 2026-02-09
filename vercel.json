@@ -1,0 +1,9 @@
+{
+  "buildCommand": "echo 'No build required'",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}

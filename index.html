@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Turbo Internal Dashboard</title>
+  <style>
+    :root { --bg:#f6f7fb; --card:#fff; --text:#111827; --muted:#6b7280; --line:#e5e7eb; }
+    body{font-family:system-ui,Segoe UI,Arial; margin:18px; background:var(--bg); color:var(--text)}
+    h1{margin:0 0 10px; font-size:22px}
+    .grid{display:grid; gap:12px; grid-template-columns:1fr}
+    .card{background:var(--card); padding:14px; border-radius:14px; box-shadow:0 6px 18px rgba(0,0,0,.06)}
+    label{display:block; font-size:13px; color:var(--muted); margin-top:10px}
+    input, select, textarea, button{
+      width:100%; padding:12px; border-radius:12px; border:1px solid var(--line);
+      margin-top:6px; font-size:14px; box-sizing:border-box; background:#fff;
+    }
+    textarea{min-height:110px; resize:vertical}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+    .btn{cursor:pointer; border:none}
+    .btn-dark{background:#111827; color:#fff}
+    .btn-green{background:#25D366; color:#fff}
+    .btn-gray{background:#eef2f7}
+    .btn-red{background:#ef4444; color:#fff}
+    .small{font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4}
+    table{width:100%; border-collapse:collapse; margin-top:10px}
+    th,td{padding:10px; border-bottom:1px solid var(--line); text-align:right; vertical-align:top}
+    th{font-size:12px; color:var(--muted); font-weight:600}
+    td{font-size:14px}
+    .pill{display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; background:#eef2f7; color:#111827}
+    .actions{display:flex; gap:8px; flex-wrap:wrap}
+    .twoBtns{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .hr{height:1px; background:var(--line); margin:12px 0}
+  </style>
+</head>
+<body>
+
+<h1> Turbo  WhatsApp Dashboard (Internal)</h1>
+<div class="small">
+  Open WhatsApp with a ready message (Click-to-Chat). You only need to press send within WhatsApp.
+</div>
+
+<div class="grid">
+
+  <!-- Add customer -->
+  <div class="card">
+    <b>Add Customer</b>
+    <div class="row">
+      <div>
+        <label>Name</label>
+        <input id="c_name" placeholder="Example: John" />
+      </div>
+      <div>
+        <label>Phone Number</label>
+        <input id="c_phone" placeholder="Example: +1234567890 or 1234567890" />
+        <div class="small">Enter phone number in E.164 format or with country code</div>
+      </div>
+    </div>
+    <button class="btn btn-dark" id="addCustomer">Add</button>
+  </div>
+
+  <!-- Templates -->
+  <div class="card">
+    <b>Templates</b>
+
+    <div class="row">
+      <div>
+        <label>Select Template</label>
+        <select id="tplSelect"></select>
+      </div>
+      <div>
+        <label>Template Name</label>
+        <input id="tplName" placeholder="Template name" />
+      </div>
+    </div>
+
+    <label>Message Text</label>
+    <textarea id="tplText" placeholder="Write the message here..."></textarea>
+
+    <div class="small">
+      Variables: <span class="mono">{name}</span> <span class="mono">{time}</span> <span class="mono">{date}</span> <span class="mono">{amount}</span>
+    </div>
+
+    <div class="twoBtns" style="margin-top:10px">
+      <button class="btn btn-gray" id="saveTemplate">Save/Edit Template</button>
+      <button class="btn btn-red" id="deleteTemplate">Delete Template</button>
+    </div>
+  </div>
+  <!-- Scheduling / Vars -->
+  <div class="card">
+    <b>General Variables</b>
+    <div class="row3">
+      <div>
+        <label>Date</label>
+        <input id="var_date" type="date" />
+      </div>
+      <div>
+        <label>Start Time</label>
+        <input id="var_start" type="time" value="14:00" />
+      </div>
+      <div>
+        <label>Interval (Minutes)</label>
+        <input id="var_interval" type="number" min="1" value="5" />
+      </div>
+    </div>
+
+    <label>Amount/Value (Optional)</label>
+    <input id="var_amount" placeholder="Example: $500" />
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <div>
+        <label>Delay for Open All (Seconds)</label>
+        <input id="openAllDelay" type="number" min="1" value="1" />
+      </div>
+      <div>
+        <label>Maximum Chats to Open</label>
+        <input id="openAllLimit" type="number" min="1" value="20" />
+      </div>
+    </div>
+
+    <button class="btn btn-dark" id="generate">Generate Messages</button>
+  </div>
+
+  <!-- Customers -->
+  <div class="card">
+    <b>Customers</b>
+    <input id="search" placeholder="Search by name or number..." />
+
+    <div class="twoBtns" style="margin-top:10px">
+      <button class="btn btn-gray" id="exportCSV">Export CSV</button>
+      <button class="btn btn-gray" id="importCSVBtn">Import CSV</button>
+    </div>
+    <input id="importCSV" type="file" accept=".csv" style="display:none" />
+
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Number (Display)</th>
+          <th>Send (E164)</th>
+          <th>Last Opened</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="custBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Generated -->
+  <div class="card">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap">
+      <b>Generated Messages</b>
+      <button class="btn btn-green" id="openAll">Open All in WhatsApp</button>
+    </div>
+    <div class="small">Open WhatsApp with ready messages. Sending is done manually within WhatsApp.</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Time</th>
+          <th>Message</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="genBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Quick Send -->
+  <div class="card">
+    <b>Quick Send</b>
+    <div class="row">
+      <div>
+        <label>Customer</label>
+        <select id="quickCustomer"></select>
+      </div>
+      <div>
+        <label>Template</label>
+        <select id="quickTemplate"></select>
+      </div>
+    </div>
+
+    <label>Message</label>
+    <textarea id="quickMessage" placeholder="Message will auto-populate..."></textarea>
+
+    <div class="twoBtns" style="margin-top:10px">
+      <button class="btn btn-green" id="sendWhatsApp">Send WhatsApp</button>
+      <button class="btn btn-gray" id="copyLink">Copy Link</button>
+    </div>
+    <button class="btn btn-gray" id="previewLink" style="width:100%; margin-top:6px">Preview Link</button>
+  </div>
+
+</div>
+
+<script>
+  // ---------- Storage ----------
+  const KEY = "wa_internal_dashboard_v2";
+  const state = loadState();
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      if(!raw){
+        return {
+          customers: [],
+          templates: [
+            { id: crypto.randomUUID(), name: "Gentle Reminder", text: "Good evening {name},\nI wanted to remind you about your appointment at {time} on {date}.\nIf you need any help, I'm here 🙏" },
+            { id: crypto.randomUUID(), name: "Formal Follow-up", text: "Dear {name},\nPlease confirm your appointment at {time} on {date}.\nThank you for your cooperation." },
+          ],
+          selectedTemplateId: null,
+          vars: { date:"", start:"14:00", interval:5, amount:"" },
+          settings: { openAllDelay:1, openAllLimit:20 },
+          generated: []
+        };
+      }
+      return JSON.parse(raw);
+    } catch(e){
+      return { customers: [], templates: [], selectedTemplateId:null, vars:{}, settings:{}, generated:[] };
+    }
+  }
+  function saveState(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+  // ---------- Helpers ----------
+  const $ = (id) => document.getElementById(id);
+
+  function normalizePhone(input){
+    let s = (input || "").trim();
+    s = s.replace(/[^\d+]/g, ""); // keep digits and plus
+    if(s.startsWith("+")) s = s.slice(1);
+
+    // International phone format
+    // Validate E164 format (10-16 digits without +)
+    if(/^\d{10,16}$/.test(s)) return s;
+
+    return ""; // invalid
+  }
+
+  function displayPhoneFromE164(e164){
+    // Display E164 format as-is
+    return e164;
+  }
+
+  function fmtTimeFromStart(startHHMM, offsetMin){
+    const [h,m] = startHHMM.split(":").map(Number);
+    const total = h*60 + m + offsetMin;
+    const hh = Math.floor((total % (24*60)) / 60);
+    const mm = total % 60;
+    // 12-hour
+    const ampm = hh >= 12 ? "PM" : "AM";
+    const hh12 = ((hh + 11) % 12) + 1;
+    return `${String(hh12).padStart(2,"0")}:${String(mm).padStart(2,"0")} ${ampm}`;
+  }
+
+  function fillTemplate(text, vars){
+    return (text || "")
+      .replaceAll("{name}", vars.name ?? "")
+      .replaceAll("{time}", vars.time ?? "")
+      .replaceAll("{date}", vars.date ?? "")
+      .replaceAll("{amount}", vars.amount ?? "");
+  }
+
+  function waLink(e164, message){
+    return `https://wa.me/${e164}?text=${encodeURIComponent(message)}`;
+  }
+
+  function nowISO(){
+    const d = new Date();
+    return d.toISOString();
+  }
+
+  function isoToLocal(iso){
+    if(!iso) return "-";
+    const d = new Date(iso);
+    return d.toLocaleString();
+  }
+
+  function downloadText(filename, text){
+    const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function toCSV(rows){
+    const esc = (v) => `"${String(v ?? "").replaceAll('"','""')}"`;
+    return rows.map(r => r.map(esc).join(",")).join("\n");
+  }
+
+  function parseCSV(text){
+    // minimal CSV parser (handles quotes)
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+    const out = [];
+    for(const line of lines){
+      const row = [];
+      let cur = "", inQ = false;
+      for(let i=0;i<line.length;i++){
+        const ch = line[i];
+        if(ch === '"' ){
+          if(inQ && line[i+1] === '"'){ cur += '"'; i++; }
+          else inQ = !inQ;
+        } else if(ch === "," && !inQ){
+          row.push(cur); cur = "";
+        } else {
+          cur += ch;
+        }
+      }
+      row.push(cur);
+      out.push(row);
+    }
+    return out;
+  }
+
+  // ---------- UI bindings ----------
+  function init(){
+    // vars default
+    if(!state.vars.date){
+      const d = new Date();
+      state.vars.date = d.toISOString().slice(0,10);
+    }
+    $("var_date").value = state.vars.date || "";
+    $("var_start").value = state.vars.start || "14:00";
+    $("var_interval").value = state.vars.interval ?? 5;
+    $("var_amount").value = state.vars.amount ?? "";
+
+    $("openAllDelay").value = state.settings.openAllDelay ?? 1;
+    $("openAllLimit").value = state.settings.openAllLimit ?? 20;
+
+    renderTemplates();
+    renderCustomers();
+    renderGenerated();
+    saveState();
+  }
+
+  // Customers
+  $("addCustomer").addEventListener("click", () => {
+    const name = $("c_name").value.trim();
+    const rawPhone = $("c_phone").value.trim();
+    const e164 = normalizePhone(rawPhone);
+    if(!name) return alert("Please enter a name");
+    if(!e164) return alert("Invalid number. Example: 010... or 2010...");
+
+    const exists = state.customers.some(c => c.e164 === e164);
+    if(exists) return alert("This number already exists");
+
+    state.customers.push({
+      id: crypto.randomUUID(),
+      name,
+      e164,
+      lastOpenedAt: ""
+    });
+
+    $("c_name").value = "";
+    $("c_phone").value = "";
+
+    saveState();
+    renderCustomers();
+    renderQuickCustomers();
+  });
+
+  $("search").addEventListener("input", renderCustomers);
+
+  // Templates
+  function renderTemplates(){
+    const sel = $("tplSelect");
+    sel.innerHTML = "";
+    if(!state.selectedTemplateId && state.templates[0]) state.selectedTemplateId = state.templates[0].id;
+
+    for(const t of state.templates){
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    }
+    sel.value = state.selectedTemplateId || "";
+    const t = state.templates.find(x => x.id === sel.value);
+    $("tplName").value = t?.name || "";
+    $("tplText").value = t?.text || "";
+  }
+
+  $("tplSelect").addEventListener("change", () => {
+    state.selectedTemplateId = $("tplSelect").value;
+    saveState();
+    renderTemplates();
+  });
+
+  $("saveTemplate").addEventListener("click", () => {
+    const id = $("tplSelect").value;
+    const name = $("tplName").value.trim() || "Unnamed Template";
+    const text = $("tplText").value;
+
+    if(id){
+      const t = state.templates.find(x => x.id === id);
+      if(t){ t.name = name; t.text = text; }
+    } else {
+      state.templates.push({ id: crypto.randomUUID(), name, text });
+      state.selectedTemplateId = state.templates[state.templates.length-1].id;
+    }
+    saveState();
+    renderTemplates();    renderQuickTemplates();    alert("Saved successfully");
+  });
+
+  $("deleteTemplate").addEventListener("click", () => {
+    const id = $("tplSelect").value;
+    if(!id) return;
+    if(!confirm("Delete this template?")) return;
+    state.templates = state.templates.filter(t => t.id !== id);
+    state.selectedTemplateId = state.templates[0]?.id || null;
+    saveState();
+    renderTemplates();
+    renderQuickTemplates();
+  });
+
+  // Vars
+  ["var_date","var_start","var_interval","var_amount","openAllDelay","openAllLimit"].forEach(id=>{
+    $(id).addEventListener("input", () => {
+      state.vars.date = $("var_date").value;
+      state.vars.start = $("var_start").value;
+      state.vars.interval = Number($("var_interval").value || 5);
+      state.vars.amount = $("var_amount").value;
+
+      state.settings.openAllDelay = Number($("openAllDelay").value || 1);
+      state.settings.openAllLimit = Number($("openAllLimit").value || 20);
+
+      saveState();
+    });
+  });
+
+  // Generate
+  $("generate").addEventListener("click", () => {
+    const tpl = state.templates.find(t => t.id === state.selectedTemplateId);
+    if(!tpl) return alert("Please select a template");
+
+    const date = state.vars.date || "";
+    const start = state.vars.start || "14:00";
+    const interval = Number(state.vars.interval || 5);
+    const amount = state.vars.amount || "";
+
+    if(state.customers.length === 0) return alert("Please add customers first");
+
+    state.generated = state.customers.map((c, idx) => {
+      const time = fmtTimeFromStart(start, idx * interval);
+      const msg = fillTemplate(tpl.text, { name: c.name, time, date, amount });
+      return {
+        customerId: c.id,
+        name: c.name,
+        e164: c.e164,
+        time,
+        message: msg,
+        opened: false
+      };
+    });
+
+    saveState();
+    renderGenerated();
+  });
+
+  // Open all
+  $("openAll").addEventListener("click", async () => {
+    if(!state.generated.length) return alert("Click Generate Messages first");
+    const limit = Math.max(1, Number(state.settings.openAllLimit || 20));
+    const delaySec = Math.max(1, Number(state.settings.openAllDelay || 1));
+
+    const list = state.generated.slice(0, limit);
+    if(!confirm(`Will open ${list.length} chats on WhatsApp. Continue?`)) return;
+
+    for(let i=0;i<list.length;i++){
+      const g = list[i];
+      window.open(waLink(g.e164, g.message), "_blank");
+      markOpened(g.customerId);
+      await new Promise(r => setTimeout(r, delaySec * 1000));
+    }
+    saveState();
+    renderGenerated();
+    renderCustomers();
+  });
+
+  function markOpened(customerId){
+    const cust = state.customers.find(c => c.id === customerId);
+    if(cust) cust.lastOpenedAt = nowISO();
+    const gen = state.generated.find(g => g.customerId === customerId);
+    if(gen) gen.opened = true;
+  }
+
+  function renderCustomers(){
+    const q = $("search").value.trim().toLowerCase();
+    const rows = state.customers
+      .filter(c => !q || c.name.toLowerCase().includes(q) || displayPhoneFromE164(c.e164).includes(q) || c.e164.includes(q))
+      .map(c => {
+        const display = displayPhoneFromE164(c.e164);
+        return `
+          <tr>
+            <td>${escapeHtml(c.name)}</td>
+            <td class="mono">${escapeHtml(display)}</td>
+            <td class="mono">${escapeHtml(c.e164)}</td>
+            <td>${escapeHtml(isoToLocal(c.lastOpenedAt))}</td>
+            <td>
+              <div class="actions">
+                <button class="btn btn-gray" onclick="copyText('${c.e164}')">Copy E164</button>
+                <button class="btn btn-red" onclick="deleteCustomer('${c.id}')">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+    $("custBody").innerHTML = rows || `<tr><td colspan="5"><span class="pill">No data</span></td></tr>`;
+  }
+
+  function renderGenerated(){
+    const rows = state.generated.map(g => {
+      const status = g.opened ? `<span class="pill">Opened ✅</span>` : `<span class="pill">Pending ⏳</span>`;
+      const preview = escapeHtml(g.message).replaceAll("\n","<br>");
+      return `
+        <tr>
+          <td>
+            <b>${escapeHtml(g.name)}</b><br>
+            <span class="mono">${escapeHtml(displayPhoneFromE164(g.e164))}</span><br>
+            ${status}
+          </td>
+          <td class="mono">${escapeHtml(g.time)}</td>
+          <td style="max-width:420px">${preview}</td>
+          <td>
+            <div class="actions">
+              <button class="btn btn-green" onclick="openOne('${g.customerId}')">Open</button>
+              <button class="btn btn-gray" onclick="copyText(${JSON.stringify(g.message)})">Copy Msg</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    $("genBody").innerHTML = rows || `<tr><td colspan="4"><span class="pill">Click Generate Messages</span></td></tr>`;
+  }
+
+  // Export/Import
+  $("exportCSV").addEventListener("click", () => {
+    const header = ["name","phone"];
+    const rows = state.customers.map(c => [c.name, displayPhoneFromE164(c.e164)]);
+    const csv = toCSV([header, ...rows]);
+    downloadText("customers.csv", csv);
+  });
+
+  $("importCSVBtn").addEventListener("click", () => $("importCSV").click());
+
+  $("importCSV").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    const text = await file.text();
+    const rows = parseCSV(text);
+    if(rows.length < 2) return alert("CSV is empty");
+
+    // Expect header: name, phone (any order)
+    const header = rows[0].map(h => h.trim().toLowerCase());
+    const nameIdx = header.indexOf("name");
+    const phoneIdx = header.indexOf("phone");
+    if(nameIdx === -1 || phoneIdx === -1) return alert("CSV must contain columns: name, phone");
+
+    let added = 0, skipped = 0;
+    for(let i=1;i<rows.length;i++){
+      const r = rows[i];
+      const name = (r[nameIdx] ?? "").trim();
+      const phone = (r[phoneIdx] ?? "").trim();
+      const e164 = normalizePhone(phone);
+      if(!name || !e164){ skipped++; continue; }
+      if(state.customers.some(c => c.e164 === e164)){ skipped++; continue; }
+      state.customers.push({ id: crypto.randomUUID(), name, e164, lastOpenedAt:"" });
+      added++;
+    }
+    saveState();
+    renderCustomers();
+    renderQuickCustomers();
+    alert(`Imported: ${added} | Skipped: ${skipped}`);
+    e.target.value = "";
+  });
+
+  // ---------- Global actions ----------
+  function escapeHtml(str){
+    return String(str ?? "").replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[m]));
+  }
+
+  window.copyText = async (text) => {
+    try{
+      await navigator.clipboard.writeText(String(text));
+      alert("Copied ✅");
+    } catch(e){
+      alert("Failed to copy. Try manually.");
+    }
+  };
+
+  window.deleteCustomer = (id) => {
+    if(!confirm("Delete this customer?")) return;
+    state.customers = state.customers.filter(c => c.id !== id);
+    state.generated = state.generated.filter(g => g.customerId !== id);
+    saveState();
+    renderCustomers();
+    renderGenerated();
+    renderQuickCustomers();
+  };
+
+  window.openOne = (customerId) => {
+    const g = state.generated.find(x => x.customerId === customerId);
+    if(!g) return;
+    window.open(waLink(g.e164, g.message), "_blank");
+    markOpened(customerId);
+    saveState();
+    renderGenerated();
+    renderCustomers();
+  };
+
+  // Quick Send
+  function renderQuickCustomers(){
+    const sel = $("quickCustomer");
+    sel.innerHTML = `<option value="">-- Select Customer --</option>`;
+    for(const c of state.customers){
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = `${c.name} (${displayPhoneFromE164(c.e164)})`;
+      sel.appendChild(opt);
+    }
+  }
+
+  function renderQuickTemplates(){
+    const sel = $("quickTemplate");
+    sel.innerHTML = `<option value="">-- Select Template --</option>`;
+    for(const t of state.templates){
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    }
+  }
+
+  function updateQuickMessage(){
+    const customerId = $("quickCustomer").value;
+    const templateId = $("quickTemplate").value;
+    
+    if(!customerId || !templateId){
+      $("quickMessage").value = "";
+      return;
+    }
+
+    const customer = state.customers.find(c => c.id === customerId);
+    const template = state.templates.find(t => t.id === templateId);
+    
+    if(!customer || !template){
+      $("quickMessage").value = "";
+      return;
+    }
+
+    const msg = fillTemplate(template.text, {
+      name: customer.name,
+      time: "",
+      date: state.vars.date || "",
+      amount: state.vars.amount || ""
+    });
+    
+    $("quickMessage").value = msg;
+  }
+
+  function getQuickLink(){
+    const customerId = $("quickCustomer").value;
+    const message = $("quickMessage").value.trim();
+    
+    if(!customerId || !message) return null;
+    
+    const customer = state.customers.find(c => c.id === customerId);
+    if(!customer) return null;
+    
+    return waLink(customer.e164, message);
+  }
+
+  $("quickCustomer").addEventListener("change", updateQuickMessage);
+  $("quickTemplate").addEventListener("change", updateQuickMessage);
+
+  $("sendWhatsApp").addEventListener("click", () => {
+    const link = getQuickLink();
+    if(!link) return alert("Select a customer and template, and verify the message");
+    
+    const customerId = $("quickCustomer").value;
+    window.open(link, "_blank");
+    markOpened(customerId);
+    saveState();
+    renderCustomers();
+  });
+
+  $("copyLink").addEventListener("click", async () => {
+    const link = getQuickLink();
+    if(!link) return alert("Select a customer and template, and verify the message");
+    
+    try{
+      await navigator.clipboard.writeText(link);
+      alert("Link copied ✅");
+    } catch(e){
+      alert("Failed to copy. Try manually.");
+    }
+  });
+
+  $("previewLink").addEventListener("click", () => {
+    const link = getQuickLink();
+    if(!link) return alert("Select a customer and template, and verify the message");
+    
+    alert(link);
+  });
+
+  // ---------- Boot ----------
+  init();
+  renderQuickCustomers();
+  renderQuickTemplates();
+</script>
+
+</body>
+</html>
