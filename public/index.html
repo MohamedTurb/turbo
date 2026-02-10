@@ -130,8 +130,7 @@
     <b>Customers</b>
     <input id="search" placeholder="Search by name or number..." />
 
-    <div class="twoBtns" style="margin-top:10px">
-      <button class="btn btn-gray" id="exportCSV">Export CSV</button>
+    <div style="margin-top:10px">
       <button class="btn btn-gray" id="importCSVBtn">Import CSV</button>
     </div>
     <input id="importCSV" type="file" accept=".csv" style="display:none" />
@@ -538,14 +537,7 @@
     $("genBody").innerHTML = rows || `<tr><td colspan="4"><span class="pill">Click Generate Messages</span></td></tr>`;
   }
 
-  // Export/Import
-  $("exportCSV").addEventListener("click", () => {
-    const header = ["name","phone"];
-    const rows = state.customers.map(c => [c.name, displayPhoneFromE164(c.e164)]);
-    const csv = toCSV([header, ...rows]);
-    downloadText("customers.csv", csv);
-  });
-
+  // Import
   $("importCSVBtn").addEventListener("click", () => $("importCSV").click());
 
   $("importCSV").addEventListener("change", async (e) => {
