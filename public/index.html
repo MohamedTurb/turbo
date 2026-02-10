@@ -33,6 +33,35 @@
     .twoBtns{display:grid; grid-template-columns:1fr 1fr; gap:10px}
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
     .hr{height:1px; background:var(--line); margin:12px 0}
+    .bulk-sample{background:#f9fafb; border:1px solid var(--line); border-radius:12px; padding:10px; margin-top:8px; font-size:12px; line-height:1.4}
+    .bulk-sample pre{margin:0; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    
+    @media (max-width: 768px) {
+      body{margin:12px}
+      h1{font-size:18px; margin:0 0 8px}
+      .card{padding:12px}
+      input, select, textarea, button{padding:10px; font-size:16px}
+      .row, .row3{grid-template-columns:1fr; gap:8px}
+      .twoBtns{grid-template-columns:1fr; gap:8px}
+      .small{font-size:11px}
+      table{font-size:12px}
+      th,td{padding:8px; font-size:12px}
+      th{text-align:left}
+      td{text-align:left}
+      .actions{flex-direction:column}
+      .btn{min-height:44px}
+      textarea{min-height:100px}
+    }
+    
+    @media (max-width: 480px) {
+      body{margin:10px}
+      h1{font-size:16px}
+      .card{padding:10px}
+      label{font-size:12px}
+      table{font-size:10px}
+      th,td{padding:6px}
+      .bulk-sample{padding:8px; font-size:11px}
+    }
   </style>
 </head>
 <body>
