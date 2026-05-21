@@ -162,17 +162,19 @@
 
     <div style="margin-top:10px" class="twoBtns">
       <button class="btn btn-gray" id="importCSVBtn">Import CSV</button>
+      <button class="btn btn-green" id="generateLinksBtn">Generate All Links</button>
       <button class="btn btn-red" id="deleteAllCustomers">Delete All Customers</button>
     </div>
     <input id="importCSV" type="file" accept=".csv" style="display:none" />
+    <div id="csvStatus" class="small" style="margin-top:8px"></div>
 
     <table>
       <thead>
         <tr>
           <th>Name</th>
-          <th>Number (Display)</th>
-          <th>Send (E164)</th>
-          <th>Last Opened</th>
+          <th>Phone</th>
+          <th>National ID</th>
+          <th>Due / Total</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -306,11 +308,12 @@
   }
 
   function fillTemplate(text, vars){
-    return (text || "")
-      .replaceAll("{name}", vars.name ?? "")
-      .replaceAll("{time}", vars.time ?? "")
-      .replaceAll("{date}", vars.date ?? "")
-      .replaceAll("{amount}", vars.amount ?? "");
+    if(!text) return "";
+    // support {{key}} placeholders and legacy {key}
+    return String(text).replace(/\{\{\s*([\w\.]+)\s*\}\}|\{\s*([\w\.]+)\s*\}/g, (_, g1, g2) => {
+      const key = g1 || g2;
+      return (vars && (key in vars)) ? vars[key] : "";
+    });
   }
 
   function waLink(e164, message){
@@ -329,14 +332,16 @@
   }
 
   function parseCSV(text){
-    const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+    const lines = text.split(/\r?\n/);
     const out = [];
-    for(const line of lines){
+    for(const rawLine of lines){
+      if(!rawLine) continue;
+      const line = rawLine;
       const row = [];
       let cur = "", inQ = false;
       for(let i=0;i<line.length;i++){
         const ch = line[i];
-        if(ch === '"' ){
+        if(ch === '"'){
           if(inQ && line[i+1] === '"'){ cur += '"'; i++; }
           else inQ = !inQ;
         } else if(ch === "," && !inQ){
@@ -346,9 +351,28 @@
         }
       }
       row.push(cur);
+      if(row.every(cell => String(cell ?? "").trim() === "")) continue;
       out.push(row);
     }
     return out;
+  }
+
+  function csvRowsToObjects(rows){
+    if(!rows || rows.length < 1) return [];
+    const header = rows[0].map(h => String(h||"").trim());
+    const keys = header.map(h => String(h).trim().toLowerCase());
+    const objs = [];
+    for(let i=1;i<rows.length;i++){
+      const r = rows[i];
+      const obj = {};
+      for(let j=0;j<keys.length;j++){
+        if(!keys[j]) continue;
+        obj[keys[j]] = String(r[j] ?? "").trim();
+      }
+      if(Object.values(obj).every(v => v === "")) continue;
+      objs.push(obj);
+    }
+    return objs;
   }
 
   // ---------- UI bindings ----------
@@ -475,19 +499,26 @@
     const date = state.vars.date || "";
     const start = state.vars.start || "14:00";
     const interval = Number(state.vars.interval || 5);
-    const amount = state.vars.amount || "";
+    const globalAmount = state.vars.amount || "";
 
     if(state.customers.length === 0) return alert("Please add customers first");
 
     state.generated = state.customers.map((c, idx) => {
       const time = fmtTimeFromStart(start, idx * interval);
-      const msg = fillTemplate(tpl.text, { name: c.name, time, date, amount });
+      const vars = Object.assign({}, c, {
+        time,
+        date,
+        amount: c.amount || globalAmount || "",
+      });
+      const msg = fillTemplate(tpl.text, vars);
+      const link = waLink(c.e164, msg);
       return {
         customerId: c.id,
         name: c.name,
         e164: c.e164,
         time,
         message: msg,
+        link,
         opened: false
       };
     });
@@ -533,11 +564,12 @@
           <tr>
             <td>${escapeHtml(c.name)}</td>
             <td class="mono">${escapeHtml(display)}</td>
-            <td class="mono">${escapeHtml(c.e164)}</td>
-            <td>${escapeHtml(isoToLocal(c.lastOpenedAt))}</td>
+            <td class="mono">${escapeHtml(c.nationalId || "")}</td>
+            <td>${escapeHtml(c.dueDate || "")} / ${escapeHtml(c.total ?? "")}</td>
             <td>
               <div class="actions">
                 <button class="btn btn-gray" onclick="copyText('${c.e164}')">Copy E164</button>
+                <button class="btn btn-gray" onclick="previewForCustomer('${c.id}')">Preview Msg</button>
                 <button class="btn btn-red" onclick="deleteCustomer('${c.id}')">Delete</button>
               </div>
             </td>
@@ -559,11 +591,12 @@
             <span class="mono">${escapeHtml(displayPhoneFromE164(g.e164))}</span><br>
             ${status}
           </td>
-          <td class="mono">${escapeHtml(g.time)}</td>
+          <td class="mono">${escapeHtml(g.time || "")}</td>
           <td style="max-width:420px">${preview}</td>
           <td>
             <div class="actions">
-              <button class="btn btn-green" onclick="openOne('${g.customerId}')">Open</button>
+              <button class="btn btn-green" onclick="openLink('${g.link || ''}','${g.customerId}')">Open</button>
+              <button class="btn btn-gray" onclick="copyText(${JSON.stringify(g.link || '')})">Copy Link</button>
               <button class="btn btn-gray" onclick="copyText(${JSON.stringify(g.message)})">Copy Msg</button>
             </div>
           </td>
@@ -597,30 +630,51 @@
     const file = e.target.files?.[0];
     if(!file) return;
     const text = await file.text();
-    const rows = parseCSV(text);
-    if(rows.length < 2) return alert("CSV is empty");
+    try{
+      const rows = parseCSV(text);
+      if(rows.length < 2) return alert('CSV is empty or missing header');
+      const objs = csvRowsToObjects(rows);
 
-    const header = rows[0].map(h => h.trim().toLowerCase());
-    const nameIdx = header.indexOf("name");
-    const phoneIdx = header.indexOf("phone");
-    if(nameIdx === -1 || phoneIdx === -1) return alert("CSV must contain columns: name, phone");
+      let added = 0, skipped = 0, invalid = 0;
+      for(const o of objs){
+        const phoneRaw = (o.phone || o.Phone || "").trim();
+        if(!phoneRaw){ skipped++; continue; }
+        const e164 = normalizePhone(phoneRaw);
+        if(!e164){ invalid++; continue; }
+        if(state.customers.some(c => c.e164 === e164)){ skipped++; continue; }
 
-    let added = 0, skipped = 0;
-    for(let i=1;i<rows.length;i++){
-      const r = rows[i];
-      const name = (r[nameIdx] ?? "").trim();
-      const phone = (r[phoneIdx] ?? "").trim();
-      const e164 = normalizePhone(phone);
-      if(!name || !e164){ skipped++; continue; }
-      if(state.customers.some(c => c.e164 === e164)){ skipped++; continue; }
-      state.customers.push({ id: crypto.randomUUID(), name, e164, lastOpenedAt:"" });
-      added++;
+        const name = (o.name || o.Name || "").trim() || '';
+        const amount = parseFloat((o.amount || o.Amount || "").replace(/[^0-9.\-]/g, "")) || 0;
+        const penalty = parseFloat((o.penalty || o.Penalty || "").replace(/[^0-9.\-]/g, "")) || 0;
+        let total = (o.total || o.Total || "").trim();
+        total = total ? parseFloat(total.replace(/[^0-9.\-]/g, "")) : (amount + penalty);
+
+        state.customers.push({
+          id: crypto.randomUUID(),
+          name: name || ('Unnamed ' + e164),
+          e164,
+          nationalId: (o.nationalid || o.nationalId || o['national id'] || '').trim(),
+          lateDays: (o.latedays || o.lateDays || '').trim(),
+          amount: amount || '',
+          penalty: penalty || '',
+          total: total || '',
+          dueDate: (o.duedate || o.dueDate || o['due date'] || '').trim(),
+          lastOpenedAt: ''
+        });
+        added++;
+      }
+
+      saveState();
+      renderCustomers();
+      renderQuickCustomers();
+      const status = document.getElementById('csvStatus');
+      status.style.color = invalid ? '#b45309' : '#065f46';
+      status.textContent = `Imported: ${added} | Skipped: ${skipped} | Invalid phones: ${invalid}`;
+    } catch(err){
+      alert('CSV import failed: ' + err.message);
+    } finally{
+      e.target.value = '';
     }
-    saveState();
-    renderCustomers();
-    renderQuickCustomers();
-    alert(`Imported: ${added} | Skipped: ${skipped}`);
-    e.target.value = "";
   });
 
   // ---------- Global actions ----------
@@ -658,6 +712,46 @@
     renderGenerated();
     renderCustomers();
   };
+
+  function openLink(link, customerId){
+    if(!link) return alert('No link available');
+    window.location.href = link;
+    if(customerId) markOpened(customerId);
+    saveState();
+    renderGenerated();
+    renderCustomers();
+  }
+
+  function previewForCustomer(customerId){
+    const tpl = state.templates.find(t => t.id === state.selectedTemplateId);
+    if(!tpl) return alert('No template selected');
+    const c = state.customers.find(x => x.id === customerId);
+    if(!c) return alert('Customer not found');
+    const time = fmtTimeFromStart(state.vars.start || '14:00', 0);
+    const vars = Object.assign({}, c, { time, date: state.vars.date || '', amount: c.amount || state.vars.amount || '' });
+    const msg = fillTemplate(tpl.text, vars);
+    alert(msg);
+  }
+
+  // Generate Links (generate link entries for all customers using selected template)
+  $("generateLinksBtn").addEventListener("click", () => {
+    const tpl = state.templates.find(t => t.id === state.selectedTemplateId);
+    if(!tpl) return alert('Please select a template');
+    if(state.customers.length === 0) return alert('No customers to generate');
+
+    const start = state.vars.start || '14:00';
+    const interval = Number(state.vars.interval || 5);
+
+    state.generated = state.customers.map((c, idx) => {
+      const time = fmtTimeFromStart(start, idx * interval);
+      const vars = Object.assign({}, c, { time, date: state.vars.date || '', amount: c.amount || state.vars.amount || '' });
+      const message = fillTemplate(tpl.text, vars);
+      const link = waLink(c.e164, message);
+      return { customerId: c.id, name: c.name, e164: c.e164, time, message, link, opened: false };
+    });
+    saveState();
+    renderGenerated();
+  });
 
   // Quick Send
   function renderQuickCustomers(){
